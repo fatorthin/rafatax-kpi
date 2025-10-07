@@ -26,6 +26,7 @@ class TeamResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->required(),
                 Forms\Components\Select::make('pic_id')
+                    ->label('PIC')
                     ->relationship(
                         'pic',
                         'name',
