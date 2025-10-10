@@ -17,7 +17,7 @@
                 </div>
             </div>
             <div class="flex space-x-2">
-                <a href="{{ route('filament.admin.pages.admin-dashboard') }}"
+                <a href="{{ route('filament.admin.pages.dashboard') }}"
                     class="inline-flex items-center px-3 py-1.5 bg-amber-600 border border-transparent rounded-md text-xs font-medium text-white hover:bg-amber-700 focus:bg-amber-700 active:bg-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 transition ease-in-out duration-150">
                     <x-heroicon-o-home class="h-3 w-3 mr-1" />
                     Dashboard Admin
@@ -31,4 +31,3 @@
         </div>
     </x-filament::section>
 </x-filament-widgets::widget>
-

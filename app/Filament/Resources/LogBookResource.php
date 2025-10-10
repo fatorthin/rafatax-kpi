@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Builder;
 use App\Filament\Resources\LogBookResource\Pages;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use App\Filament\Resources\LogBookResource\RelationManagers;
+use Filament\Notifications\Notification;
 
 class LogBookResource extends Resource
 {
@@ -70,7 +71,8 @@ class LogBookResource extends Resource
                     ->required(),
                 Forms\Components\TextInput::make('count_task')
                     ->default(1)
-                    ->readOnly(),
+                    ->readOnly()
+                    ->visible(fn() => Auth::user()?->hasRole('admin')),
                 Forms\Components\Textarea::make('description')
                     ->required(),
             ]);
@@ -80,7 +82,9 @@ class LogBookResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('staff.name'),
+                Tables\Columns\TextColumn::make('staff.name')
+                    ->label('Staff')
+                    ->visible(fn(): bool => Filament::getCurrentPanel()?->getId() === 'admin'),
                 Tables\Columns\TextColumn::make('date')
                     ->dateTime('d-m-Y')
                     ->sortable(),
@@ -90,8 +94,10 @@ class LogBookResource extends Resource
                     ->wrap(),
                 Tables\Columns\TextColumn::make('count_task')
                     ->sortable(),
+                Tables\Columns\TextColumn::make('comment')
+                    ->wrap(),
             ])
-            ->defaultSort('date', 'desc')
+            ->defaultSort('created_at', 'desc')
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
                 Tables\Filters\Filter::make('created_at')
@@ -130,6 +136,36 @@ class LogBookResource extends Resource
                     ->label('Job Description'),
             ])
             ->actions([
+                // Admin-only modal action to input a comment for the log book record
+                Tables\Actions\Action::make('add_comment')
+                    ->label(fn(?LogBook $record): string => ($record && $record->comment) ? 'Update Comment' : 'Add Comment')
+                    ->modalHeading(fn(?LogBook $record): string => ($record && $record->comment) ? 'Update Comment' : 'Add Comment')
+                    ->icon('heroicon-o-chat-bubble-left-ellipsis')
+                    ->form([
+                        Forms\Components\Textarea::make('comment')
+                            ->label('Comment')
+                            ->required()
+                            ->default(fn(?LogBook $record) => $record?->comment),
+                    ])
+                    ->action(function (LogBook $record, array $data): void {
+                        // server-side guard: only admins can save comments
+                        if (! (Auth::user()?->hasRole('admin') ?? false)) {
+                            Notification::make()
+                                ->danger()
+                                ->title('Unauthorized')
+                                ->body('You are not authorized to perform this action.')
+                                ->send();
+                            return;
+                        }
+
+                        $record->update(['comment' => $data['comment']]);
+                        Notification::make()
+                            ->success()
+                            ->title('Comment saved')
+                            ->send();
+                    })
+                    ->visible(fn(): bool => Auth::user()?->hasRole('admin') ?? false),
+
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
                 Tables\Actions\ForceDeleteAction::make(),

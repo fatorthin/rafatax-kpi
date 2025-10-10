@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Filament\Notifications\Notification;
 use App\Filament\Http\Responses\Auth\CustomLoginResponse;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Log;
 
 class CustomLogin extends BaseLogin
 {
@@ -72,13 +73,26 @@ class CustomLogin extends BaseLogin
             // Pastikan session sudah disimpan
             session()->regenerate();
 
-            // Jika login berhasil, return custom login response
-            return app(CustomLoginResponse::class);
+            // Jika login berhasil, redirect client-side langsung berdasarkan role
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+            if ($user && $user->hasRole('staff')) {
+                $target = url('/staff');
+            } elseif ($user && $user->hasRole('admin')) {
+                $target = url('/app');
+            } else {
+                $target = url('/app');
+            }
+
+            // Lakukan redirect Livewire (client-side)
+            $this->redirect($target);
+
+            return null;
         } catch (ValidationException $e) {
             throw $e;
         } catch (\Exception $e) {
             // Log error untuk debugging
-            \Log::error('Login error: ' . $e->getMessage());
+            Log::error('Login error: ' . $e->getMessage());
 
             throw ValidationException::withMessages([
                 'data.email' => [__('filament-panels::pages/auth/login.messages.failed')],

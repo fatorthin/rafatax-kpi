@@ -16,9 +16,11 @@ return new class extends Migration
             $table->foreignId('staff_id')->constrained('staff')->onDelete('cascade')->onUpdate('cascade');
             $table->foreignId('job_description_id')->constrained('job_descriptions')->onDelete('cascade')->onUpdate('cascade');
             $table->text('description');
-            $table->double('count_task');
+            $table->double('count_task')->default(1);
             $table->date('date');
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
+            $table->text('comment')->nullable();
+            $table->foreignId('client_report_id')->constrained('client_report')->onDelete('cascade')->onUpdate('cascade')->nullable();
             $table->timestamps();
             $table->softDeletes('deleted_at', 0);
         });

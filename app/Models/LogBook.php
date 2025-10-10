@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Models\Role;
+use App\Models\Staff;
+use App\Models\ClientReport;
+use App\Models\JobDescription;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use App\Models\Staff;
-use App\Models\Role;
-use App\Models\JobDescription;
 
 class LogBook extends Model
 {
@@ -17,13 +18,16 @@ class LogBook extends Model
         'job_description_id',
         'date',
         'description',
-        'count_task',   
-    ];  
+        'count_task',
+        'comment',
+        'status',
+        'client_report_id',
+    ];
 
     public function staff()
     {
         return $this->belongsTo(Staff::class);
-    }   
+    }
 
     public function role()
     {
@@ -33,5 +37,10 @@ class LogBook extends Model
     public function jobDescription()
     {
         return $this->belongsTo(JobDescription::class);
+    }
+
+    public function clientReport()
+    {
+        return $this->belongsTo(ClientReport::class);
     }
 }

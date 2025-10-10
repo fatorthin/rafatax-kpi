@@ -34,6 +34,7 @@ class StaffPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Cyan,
             ])
+            ->sidebarCollapsibleOnDesktop()
             ->discoverResources(in: app_path('Filament/Staff/Resources'), for: 'App\\Filament\\Staff\\Resources')
             ->discoverPages(in: app_path('Filament/Staff/Pages'), for: 'App\\Filament\\Staff\\Pages')
             ->resources([
@@ -53,7 +54,7 @@ class StaffPanelProvider extends PanelProvider
                 MenuItem::make()
                     ->label('Admin Panel')
                     ->icon('heroicon-o-cog-6-tooth')
-                    ->url(url('/admin'))
+                    ->url(url('/app'))
                     ->visible(function (): bool {
                         $userId = Auth::id();
                         if (!$userId) {
