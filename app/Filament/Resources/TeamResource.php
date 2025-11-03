@@ -33,12 +33,6 @@ class TeamResource extends Resource
                         fn($query) => $query->where('is_active', true)
                     )
                     ->required(),
-                Forms\Components\Select::make('client_id')
-                    ->relationship('client', 'company_name')
-                    ->multiple()
-                    ->searchable()
-                    ->preload()
-                    ->required(),
                 Forms\Components\Select::make('staff_id')
                     ->multiple()
                     ->relationship('staff', 'name',  fn($query) => $query->where('is_active', true))
@@ -54,10 +48,6 @@ class TeamResource extends Resource
                 Tables\Columns\TextColumn::make('name'),
                 Tables\Columns\TextColumn::make('pic.name'),
                 Tables\Columns\TextColumn::make('staff.name')
-                    ->wrap()
-                    ->sortable()
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('client.company_name')
                     ->wrap()
                     ->sortable()
                     ->searchable(),

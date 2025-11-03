@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'rafatax_api' => [
+        'url' => env('RAFATAX_API_URL', 'https://keu.rafatax.id/api'),
+        'email' => env('RAFATAX_API_EMAIL'),
+        'password' => env('RAFATAX_API_PASSWORD'),
+        // Login endpoint: {url}/auth/login
+        // Staff endpoint: {url}/staff
+    ],
+
 ];

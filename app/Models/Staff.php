@@ -18,6 +18,7 @@ class Staff extends Model
         'address',
         'no_ktp',
         'no_spk',
+        'phone',
         'jenjang',
         'jurusan',
         'university',
