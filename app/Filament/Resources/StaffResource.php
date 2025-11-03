@@ -12,6 +12,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use League\CommonMark\Extension\Table\TableSectionRenderer;
 
 class StaffResource extends Resource
 {
@@ -120,13 +121,16 @@ class StaffResource extends Resource
                     ->searchable()
                     ->wrap()
                     ->sortable(),
-                Tables\Columns\ToggleColumn::make('is_active')
-                    ->label('Active')
-                    ->onColor('success')
-                    ->offColor('danger')
-                    ->onIcon('heroicon-o-check')
-                    ->offIcon('heroicon-o-x-mark')
-                    ->sortable(),
+                Tables\Columns\IconColumn::make('is_active')
+                    ->label('Status Aktif')
+                    ->icon(fn(string $state): string => match ($state) {
+                        '1' => 'heroicon-o-check-circle',
+                        default => 'heroicon-o-x-circle',
+                    })
+                    ->color(fn(string $state): string => match ($state) {
+                        '1' => 'success',
+                        default => 'danger',
+                    })
 
             ])
             ->filters([
@@ -137,10 +141,10 @@ class StaffResource extends Resource
                     ->default()
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-                Tables\Actions\ForceDeleteAction::make(),
-                Tables\Actions\RestoreAction::make(),
+                // Tables\Actions\EditAction::make(),
+                // Tables\Actions\DeleteAction::make(),
+                // Tables\Actions\ForceDeleteAction::make(),
+                // Tables\Actions\RestoreAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
