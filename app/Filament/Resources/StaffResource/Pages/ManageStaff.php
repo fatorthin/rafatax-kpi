@@ -43,34 +43,63 @@ class ManageStaff extends ManageRecords
             }
 
             // 2. Panggil API untuk mendapatkan data staff dengan bearer token
-            $response = Http::timeout(30)
-                ->withToken($token)
-                ->withHeaders([
-                    'Accept' => 'application/json',
-                ])
-                ->get('https://keu.rafatax.id/api/staff');
+            // Fetch all paginated data
+            $allStaffData = [];
+            $currentPage = 1;
+            $totalPages = 1;
 
-            if (!$response->successful()) {
-                $this->notify('danger', 'Gagal mengambil data dari API: ' . $response->status());
-                return;
-            }
+            do {
+                $response = Http::timeout(30)
+                    ->withToken($token)
+                    ->withHeaders([
+                        'Accept' => 'application/json',
+                    ])
+                    ->get('https://keu.rafatax.id/api/staff', [
+                        'page' => $currentPage
+                    ]);
 
-            $responseData = $response->json();
+                if (!$response->successful()) {
+                    $this->notify('danger', 'Gagal mengambil data dari API: ' . $response->status());
+                    return;
+                }
 
-            // Handle paginated response - extract data array
-            $staffData = $responseData['data'] ?? $responseData;
+                $responseData = $response->json();
 
-            if (empty($staffData) || !is_array($staffData)) {
+                // Extract data from paginated response
+                $staffData = $responseData['data'] ?? [];
+
+                if (!empty($staffData) && is_array($staffData)) {
+                    $allStaffData = array_merge($allStaffData, $staffData);
+                }
+
+                // Get pagination info
+                if (isset($responseData['meta'])) {
+                    $totalPages = $responseData['meta']['last_page'] ?? 1;
+                    $currentPage = $responseData['meta']['current_page'] ?? 1;
+                } elseif (isset($responseData['links']['next'])) {
+                    // Ada next page
+                    $currentPage++;
+                } else {
+                    // Tidak ada pagination info, hentikan
+                    break;
+                }
+
+                $currentPage++;
+            } while ($currentPage <= $totalPages);
+
+            if (empty($allStaffData)) {
                 $this->notify('warning', 'Tidak ada data staff yang ditemukan');
-                Log::warning('No staff data found', ['response' => $responseData]);
+                Log::warning('No staff data found');
                 return;
             }
+
+            Log::info('Total staff data fetched', ['total' => count($allStaffData)]);
 
             // 3. Proses dan simpan data ke database
             $successCount = 0;
             $errorCount = 0;
 
-            foreach ($staffData as $index => $data) {
+            foreach ($allStaffData as $index => $data) {
                 try {
                     // Extract IDs from nested objects
                     $positionId = $data['position']['id'] ?? $data['position_id'] ?? $data['position_reference_id'] ?? null;
