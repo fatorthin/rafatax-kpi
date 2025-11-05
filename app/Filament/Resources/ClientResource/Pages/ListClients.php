@@ -16,7 +16,7 @@ class ListClients extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            // Actions\CreateAction::make(),
             Actions\Action::make('sync_data')
                 ->label('Sinkronisasi Data')
                 ->icon('heroicon-o-arrow-path')

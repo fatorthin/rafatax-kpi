@@ -146,13 +146,7 @@ class StaffResource extends Resource
                 // Tables\Actions\ForceDeleteAction::make(),
                 // Tables\Actions\RestoreAction::make(),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\ForceDeleteBulkAction::make(),
-                    Tables\Actions\RestoreBulkAction::make(),
-                ]),
-            ]);
+        ;
     }
 
     public static function getPages(): array
