@@ -21,6 +21,7 @@ class LogBook extends Model
         'count_task',
         'comment',
         'status',
+        'is_approved',
         'client_report_id',
     ];
 

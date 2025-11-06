@@ -96,6 +96,12 @@ class LogBookResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('comment')
                     ->wrap(),
+                Tables\Columns\ToggleColumn::make('is_approved')
+                    ->label('Disetujui')
+                    ->onIcon('heroicon-o-check-circle')
+                    ->offIcon('heroicon-o-x-circle')
+                    ->onColor('success')
+                    ->offColor('danger'),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([

@@ -20,6 +20,7 @@ return new class extends Migration
             $table->date('date');
             $table->enum('status', ['pending', 'approved', 'rejected'])->default('pending');
             $table->text('comment')->nullable();
+            $table->boolean('is_approved')->default(false);
             $table->foreignId('client_report_id')->constrained('client_report')->onDelete('cascade')->onUpdate('cascade')->nullable();
             $table->timestamps();
             $table->softDeletes('deleted_at', 0);

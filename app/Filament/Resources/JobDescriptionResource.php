@@ -26,11 +26,14 @@ class JobDescriptionResource extends Resource
                 Forms\Components\Select::make('position_id')
                     ->relationship('position', 'name')
                     ->required()
-                    ->getOptionLabelFromRecordUsing(fn ($record) => ucfirst($record->name))
-                    ->formatStateUsing(fn (?string $state): string => ucfirst($state ?? '')),
+                    ->getOptionLabelFromRecordUsing(fn($record) => ucfirst($record->name))
+                    ->formatStateUsing(fn(?string $state): string => ucfirst($state ?? '')),
                 Forms\Components\Textarea::make('job_description')
                     ->required()
-                    ->maxLength(255),   
+                    ->maxLength(255),
+                Forms\Components\TextInput::make('point')
+                    ->label('Point')
+                    ->numeric(),
             ]);
     }
 
@@ -39,12 +42,17 @@ class JobDescriptionResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('position.name')
-                    ->formatStateUsing(fn (?string $state): string => ucfirst($state ?? '')),
+                    ->formatStateUsing(fn(?string $state): string => ucfirst($state ?? '')),
                 Tables\Columns\TextColumn::make('job_description')
                     ->wrap(),
+                Tables\Columns\TextColumn::make('point')
+                    ->label('Point')
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
+                Tables\Filters\SelectFilter::make('position_id')
+                    ->relationship('position', 'name')->preload()
+                    ->searchable(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

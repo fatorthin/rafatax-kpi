@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('position_id')->constrained('position_references')->onDelete('cascade')->onUpdate('cascade');
             $table->string('job_description');
+            $table->double('point')->default(0);
             $table->timestamps();
             $table->softDeletes('deleted_at', 0);
         });

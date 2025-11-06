@@ -138,7 +138,17 @@ class StaffResource extends Resource
                 Tables\Filters\Filter::make('is_active')
                     ->label('Staff Aktif')
                     ->query(fn(Builder $query): Builder => $query->where('is_active', true))
-                    ->default()
+                    ->default(),
+                Tables\Filters\SelectFilter::make('department_reference_id')
+                    ->label('Department')
+                    ->relationship('departmentReference', 'name')
+                    ->preload()
+                    ->searchable(),
+                Tables\Filters\SelectFilter::make('position_reference_id')
+                    ->label('Position')
+                    ->relationship('positionReference', 'name')
+                    ->preload()
+                    ->searchable(),
             ])
             ->actions([
                 // Tables\Actions\EditAction::make(),

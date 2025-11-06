@@ -13,9 +13,10 @@ class JobDescription extends Model
     protected $fillable = [
         'position_id',
         'job_description',
+        'point',
     ];
 
-    public function position()  
+    public function position()
     {
         return $this->belongsTo(PositionReference::class, 'position_id');
     }
