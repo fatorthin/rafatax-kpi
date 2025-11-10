@@ -20,6 +20,10 @@ class PerformanceReviewReferenceResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Daftar Referensi Penilaian Kinerja';
+
+    protected static ?string $navigationGroup = 'Referensi';
+
     public static function form(Form $form): Form
     {
         return $form
@@ -32,7 +36,7 @@ class PerformanceReviewReferenceResource extends Resource
                         'Kompetensi Dasar' => 'Kompetensi Dasar',
                         'Kompetensi Teknis' => 'Kompetensi Teknis',
                     ])
-                    ->required(),   
+                    ->required(),
                 Forms\Components\Select::make('group')
                     ->options([
                         'Rispek' => 'Rispek',
@@ -47,15 +51,15 @@ class PerformanceReviewReferenceResource extends Resource
                     ->required(),
                 Forms\Components\Select::make('period_id')
                     ->options(PeriodPerformanceReview::all()->pluck('name', 'id'))
-                    ->required(),   
+                    ->required(),
             ]);
     }
 
     public static function table(Table $table): Table
     {
         return $table
-             ->columns([
-                 Tables\Columns\TextColumn::make('type')
+            ->columns([
+                Tables\Columns\TextColumn::make('type')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('group')
@@ -68,7 +72,7 @@ class PerformanceReviewReferenceResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('period.name')
                     ->searchable()
-                    ->sortable(),   
+                    ->sortable(),
             ])
             ->filters([
                 Tables\Filters\TrashedFilter::make(),
@@ -77,7 +81,7 @@ class PerformanceReviewReferenceResource extends Resource
                         'Kompetensi Dasar' => 'Kompetensi Dasar',
                         'Kompetensi Teknis' => 'Kompetensi Teknis',
                     ]),
-                Tables\Filters\SelectFilter::make('group')  
+                Tables\Filters\SelectFilter::make('group')
                     ->options([
                         'Rispek' => 'Rispek',
                         'Antusias' => 'Antusias',

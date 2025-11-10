@@ -22,6 +22,10 @@ class PerformanceStaffResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Daftar Penilaian Kinerja Staff';
+
+    protected static ?string $navigationGroup = 'Menu KPI';
+
     public static function form(Form $form): Form
     {
         return $form
@@ -31,7 +35,7 @@ class PerformanceStaffResource extends Resource
                     ->required(),
                 Forms\Components\Select::make('staff_id')
                     ->options(Staff::all()->pluck('name', 'id'))
-                    ->required(),   
+                    ->required(),
                 Forms\Components\TextInput::make('supervisor_score')
                     ->required()
                     ->numeric(),

@@ -19,6 +19,10 @@ class PositionReferenceResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Daftar Referensi Jabatan';
+
+    protected static ?string $navigationGroup = 'Referensi';
+
     public static function form(Form $form): Form
     {
         return $form

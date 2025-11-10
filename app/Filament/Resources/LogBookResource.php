@@ -23,6 +23,10 @@ class LogBookResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Histori Log Book';
+
+    protected static ?string $navigationGroup = 'Menu KPI';
+
     public static function form(Form $form): Form
     {
         return $form

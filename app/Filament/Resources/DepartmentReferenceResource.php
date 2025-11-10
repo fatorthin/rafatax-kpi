@@ -19,11 +19,15 @@ class DepartmentReferenceResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
+    protected static ?string $navigationLabel = 'Daftar Referensi Departemen';
+
+    protected static ?string $navigationGroup = 'Referensi';
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                 Forms\Components\TextInput::make('name')
+                Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('description')
@@ -36,7 +40,7 @@ class DepartmentReferenceResource extends Resource
     {
         return $table
             ->columns([
-                 Tables\Columns\TextColumn::make('name')
+                Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('description')
