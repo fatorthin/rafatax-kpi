@@ -11,11 +11,12 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, SoftDeletes;
+    use HasFactory, Notifiable, HasRoles, SoftDeletes, HasApiTokens;
 
     /**
      * The attributes that are mass assignable.
@@ -55,18 +56,18 @@ class User extends Authenticatable implements FilamentUser
     public function canAccessPanel(Panel $panel): bool
     {
         $user = Auth::user();
-        
+
         if (!$user) {
             return false;
         }
 
         $roles = $user->getRoleNames();
-        
-        if($panel->getId() === 'admin' && $roles->contains('admin')){
+
+        if ($panel->getId() === 'admin' && $roles->contains('admin')) {
             return true;
-        } elseif($panel->getId() === 'staff' && $roles->contains('staff')){
+        } elseif ($panel->getId() === 'staff' && $roles->contains('staff')) {
             return true;
-        } else{
+        } else {
             return false;
         }
     }
