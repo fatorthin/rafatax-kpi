@@ -37,6 +37,7 @@ class JobDescriptionResource extends Resource
                     ->maxLength(255),
                 Forms\Components\TextInput::make('point')
                     ->label('Point')
+                    ->default(0)
                     ->numeric(),
             ]);
     }
@@ -46,8 +47,10 @@ class JobDescriptionResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('position.name')
+                    ->searchable()
                     ->formatStateUsing(fn(?string $state): string => ucfirst($state ?? '')),
                 Tables\Columns\TextColumn::make('job_description')
+                    ->searchable()
                     ->wrap(),
                 Tables\Columns\TextColumn::make('point')
                     ->label('Point')

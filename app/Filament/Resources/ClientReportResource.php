@@ -3,7 +3,6 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ClientReportResource\Pages;
-use App\Filament\Resources\ClientReportResource\RelationManagers;
 use App\Models\ClientReport;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -14,7 +13,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Auth;
-use App\Models\User;
 use App\Models\Staff;
 
 class ClientReportResource extends Resource

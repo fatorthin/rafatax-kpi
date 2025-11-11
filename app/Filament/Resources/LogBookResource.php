@@ -140,7 +140,8 @@ class LogBookResource extends Resource
                     }),
                 Tables\Filters\SelectFilter::make('staff_id')
                     ->relationship('staff', 'name')
-                    ->label('Staff'),
+                    ->label('Staff')
+                    ->visible(fn(): bool => Filament::getCurrentPanel()?->getId() === 'admin'),
                 Tables\Filters\SelectFilter::make('job_description_id')
                     ->relationship('jobDescription', 'job_description')
                     ->label('Job Description'),
@@ -199,14 +200,39 @@ class LogBookResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return \Illuminate\Support\Facades\Gate::allows('logbook.viewAny');
+        $panel = Filament::getCurrentPanel();
+
+        // Jika di admin panel, gunakan gate permission
+        if ($panel && $panel->getId() === 'admin') {
+            return \Illuminate\Support\Facades\Gate::allows('logbook.viewAny');
+        }
+
+        // Jika di staff panel, staff bisa melihat data mereka sendiri
+        if ($panel && $panel->getId() === 'staff') {
+            $user = Auth::user();
+            return $user && $user->staff_id;
+        }
+
+        return false;
     }
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
+
+        $panel = Filament::getCurrentPanel();
+
+        // Jika di staff panel, filter hanya data milik staff yang login
+        if ($panel && $panel->getId() === 'staff') {
+            $user = Auth::user();
+            if ($user && $user->staff_id) {
+                $query->where('staff_id', $user->staff_id);
+            }
+        }
+
+        return $query;
     }
 }
