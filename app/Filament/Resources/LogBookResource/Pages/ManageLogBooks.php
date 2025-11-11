@@ -22,7 +22,45 @@ class ManageLogBooks extends ManageRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\Action::make('job_description_stats')
+                ->label('Job Description Statistics')
+                ->icon('heroicon-o-chart-bar')
+                ->url(fn(): string => static::$resource::getUrl('job-description-stats'))
+                ->color('info'),
+            Actions\CreateAction::make()->label('Tambah Log Book')
+                ->modalHeading('Tambah Log Book')
+                ->form([
+                    Forms\Components\DatePicker::make('date')
+                        ->required()
+                        ->default(now()->toDateString()),
+                    Forms\Components\Select::make('job_description_id')
+                        ->relationship('jobDescription', 'description')
+                        ->required(),
+                    Forms\Components\TextInput::make('count_task')
+                        ->label('Jumlah Tugas')
+                        ->numeric()
+                        ->required(),
+                    Forms\Components\Textarea::make('description')
+                        ->label('Deskripsi Pekerjaan')
+                        ->required()
+                        ->rows(3),
+                ])
+                ->action(function (array $data): void {
+                    // create log book
+                    LogBook::create([
+                        'staff_id' => Auth::user()->staff_id,
+                        'job_description_id' => $data['job_description_id'],
+                        'description' => $data['description'],
+                        'count_task' => $data['count_task'],
+                        'date' => $data['date'],
+                        'status' => 'pending',
+                    ]);
+
+                    Notification::make()
+                        ->success()
+                        ->title('Log Book created')
+                        ->send();
+                }),
 
             Actions\Action::make('add_client_report')
                 ->label('Tambah Laporan Client')

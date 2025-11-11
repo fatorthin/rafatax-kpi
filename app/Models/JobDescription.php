@@ -20,4 +20,9 @@ class JobDescription extends Model
     {
         return $this->belongsTo(PositionReference::class, 'position_id');
     }
+
+    public function logBooks()
+    {
+        return $this->hasMany(LogBook::class, 'job_description_id');
+    }
 }

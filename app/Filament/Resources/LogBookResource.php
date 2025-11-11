@@ -105,7 +105,13 @@ class LogBookResource extends Resource
                     ->onIcon('heroicon-o-check-circle')
                     ->offIcon('heroicon-o-x-circle')
                     ->onColor('success')
-                    ->offColor('danger'),
+                    ->offColor('danger')
+                    ->visible(fn(): bool => Filament::getCurrentPanel()?->getId() === 'admin'),
+                Tables\Columns\IconColumn::make('is_approved')
+                    ->label('Status Persetujuan')
+                    ->icon(fn(bool $state): string => $state ? 'heroicon-o-check-circle' : 'heroicon-o-x-circle')
+                    ->color(fn(bool $state): string => $state ? 'success' : 'danger')
+                    ->visible(fn(): bool => Filament::getCurrentPanel()?->getId() === 'staff'),
             ])
             ->defaultSort('created_at', 'desc')
             ->filters([
@@ -175,10 +181,12 @@ class LogBookResource extends Resource
                             ->title('Comment saved')
                             ->send();
                     })
-                    ->visible(fn(): bool => Auth::user()?->hasRole('admin') ?? false),
+                    ->visible(fn(): bool => Filament::getCurrentPanel()?->getId() === 'admin'),
 
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn(LogBook $record): bool => !$record->is_approved),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn(LogBook $record): bool => !$record->is_approved),
                 Tables\Actions\ForceDeleteAction::make(),
                 Tables\Actions\RestoreAction::make(),
             ])
@@ -195,6 +203,7 @@ class LogBookResource extends Resource
     {
         return [
             'index' => Pages\ManageLogBooks::route('/'),
+            'job-description-stats' => Pages\JobDescriptionStats::route('/job-description-stats'),
         ];
     }
 
