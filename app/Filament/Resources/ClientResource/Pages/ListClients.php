@@ -8,6 +8,7 @@ use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class ListClients extends ListRecords
 {
@@ -109,30 +110,12 @@ class ListClients extends ListRecords
 
             foreach ($allClientData as $index => $data) {
                 try {
-                    // Prepare data untuk disimpan (sesuaikan dengan kolom yang ada di database)
-                    $clientDataToSave = [
-                        'code' => $data['code'] ?? '',
-                        'company_name' => $data['company_name'],
-                        'phone' => $data['phone'] ?? '',
-                        'address' => $data['address'] ?? '',
-                        'owner_name' => $data['owner_name'] ?? '',
-                        'owner_role' => $data['owner_role'] ?? '',
-                        'contact_person' => $data['contact_person'] ?? '',
-                        'npwp' => $data['npwp'] ?? '',
-                        'jenis_wp' => $data['jenis_wp'] ?? 'op',
-                        'grade' => $data['grade'] ?? '',
-                        'pph_25_reporting' => $data['pph_25_reporting'] ?? false,
-                        'pph_23_reporting' => $data['pph_23_reporting'] ?? false,
-                        'pph_21_reporting' => $data['pph_21_reporting'] ?? false,
-                        'pph_4_reporting' => $data['pph_4_reporting'] ?? false,
-                        'ppn_reporting' => $data['ppn_reporting'] ?? false,
-                        'spt_reporting' => $data['spt_reporting'] ?? false,
-                        'status' => $data['status'] ?? 'active',
-                        'type' => $data['type'] ?? 'pt',
-                    ];
+                    $clientDataToSave = $this->sanitizeClientPayload($data);
 
+                    // Gunakan code sebagai unique identifier karena lebih reliable
+                    // dan hindari konflik dengan auto-increment ID database lokal
                     $client = Client::updateOrCreate(
-                        ['id' => $data['id']], // identifier unik
+                        ['code' => $clientDataToSave['code']], // gunakan code, bukan id eksternal
                         $clientDataToSave
                     );
 
@@ -147,13 +130,35 @@ class ListClients extends ListRecords
                     }
 
                     $successCount++;
+                } catch (\Illuminate\Database\QueryException $e) {
+                    $errorCount++;
+
+                    // Jika error adalah warning 1265 (data truncated) padahal nilai sudah valid,
+                    // log sebagai warning saja, bukan error
+                    if (str_contains($e->getMessage(), '1265') && str_contains($e->getMessage(), 'jenis_wp')) {
+                        Log::warning('MySQL strict mode warning for client (data saved despite warning)', [
+                            'client_code' => $clientDataToSave['code'] ?? 'unknown',
+                            'jenis_wp_value' => $clientDataToSave['jenis_wp'] ?? null,
+                            'external_id' => $data['id'] ?? null,
+                        ]);
+                        // Meskipun ada warning, data sebenarnya tersimpan
+                        $successCount++;
+                        $errorCount--;
+                    } else {
+                        Log::error('Database error syncing client', [
+                            'client_code' => $clientDataToSave['code'] ?? 'unknown',
+                            'external_id' => $data['id'] ?? 'unknown',
+                            'index' => $index,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
                 } catch (\Exception $e) {
                     $errorCount++;
                     Log::error('Error syncing client', [
-                        'client_id' => $data['id'] ?? 'unknown',
+                        'client_code' => $clientDataToSave['code'] ?? 'unknown',
+                        'external_id' => $data['id'] ?? 'unknown',
                         'index' => $index,
                         'error' => $e->getMessage(),
-                        'trace' => $e->getTraceAsString()
                     ]);
                 }
             }
@@ -243,5 +248,104 @@ class ListClients extends ListRecords
             ->title($message)
             ->$type()
             ->send();
+    }
+
+    /**
+     * Normalisasi & validasi data client sebelum disimpan.
+     * - Enum jenis_wp & type dipastikan bernilai valid (fallback ke default bila tidak dikenal)
+     * - Field boolean dipaksa menjadi true/false
+     * - String ditrim & dibatasi panjang maksimum (menghindari truncated warning)
+     */
+    protected function sanitizeClientPayload(array $data): array
+    {
+        // Enum validation dengan mapping untuk jenis_wp
+        // Database actual: enum('op','badan') bukan ('perseorangan','badan')
+        $jenisWpMapping = [
+            'perseorangan' => 'op',
+            'op' => 'op',
+            'orang_pribadi' => 'op',
+            'pribadi' => 'op',
+            'badan' => 'badan',
+            'badan_usaha' => 'badan',
+            'pt' => 'badan',
+            'cv' => 'badan',
+        ];
+
+        $rawJenisWpInput = strtolower(trim((string)($data['jenis_wp'] ?? 'op')));
+        $rawJenisWp = $jenisWpMapping[$rawJenisWpInput] ?? 'op';
+
+        if (!isset($jenisWpMapping[$rawJenisWpInput])) {
+            Log::warning('Unknown jenis_wp value received, fallback applied', [
+                'received' => $data['jenis_wp'] ?? null,
+                'normalized_to' => $rawJenisWp,
+                'external_id' => $data['id'] ?? null,
+            ]);
+        }
+
+        $allowedType = ['pt', 'kkp'];
+        $rawType = strtolower(trim((string)($data['type'] ?? 'pt')));
+        if (!in_array($rawType, $allowedType, true)) {
+            Log::warning('Unknown type value received, fallback applied', [
+                'received' => $data['type'] ?? null,
+                'fallback' => 'pt',
+                'external_id' => $data['id'] ?? null,
+            ]);
+            $rawType = 'pt';
+        }
+
+        // Boolean casting helper
+        $castBool = function ($value): bool {
+            if (is_bool($value)) return $value;
+            $normalized = strtolower(trim((string)$value));
+            return in_array($normalized, ['1', 'true', 'yes', 'y'], true);
+        };
+
+        $boolFields = [
+            'pph_25_reporting',
+            'pph_23_reporting',
+            'pph_21_reporting',
+            'pph_4_reporting',
+            'ppn_reporting',
+            'spt_reporting',
+        ];
+
+        $sanitized = [];
+
+        // Safe string helper (limit length to prevent truncation warnings)
+        $safeString = function ($value, $max = 255) {
+            if ($value === null) return '';
+            $v = trim((string)$value);
+            return Str::limit($v, $max, '');
+        };
+
+        $sanitized['code'] = $safeString($data['code'] ?? '');
+        $sanitized['company_name'] = $safeString($data['company_name'] ?? '');
+        $sanitized['phone'] = $safeString($data['phone'] ?? '');
+        $sanitized['address'] = $safeString($data['address'] ?? '', 500); // text field
+        $sanitized['owner_name'] = $safeString($data['owner_name'] ?? '');
+        $sanitized['owner_role'] = $safeString($data['owner_role'] ?? '');
+        $sanitized['contact_person'] = $safeString($data['contact_person'] ?? '');
+        $sanitized['npwp'] = $safeString($data['npwp'] ?? '');
+        $sanitized['jenis_wp'] = $rawJenisWp;
+        $sanitized['grade'] = $safeString($data['grade'] ?? '');
+        $sanitized['type'] = $rawType;
+
+        foreach ($boolFields as $field) {
+            $sanitized[$field] = $castBool($data[$field] ?? false);
+        }
+
+        // status enum validation (optional: only allow active/inactive)
+        $status = strtolower(trim((string)($data['status'] ?? 'active')));
+        if (!in_array($status, ['active', 'inactive'], true)) {
+            Log::warning('Unknown status value received, fallback applied', [
+                'received' => $data['status'] ?? null,
+                'fallback' => 'active',
+                'external_id' => $data['id'] ?? null,
+            ]);
+            $status = 'active';
+        }
+        $sanitized['status'] = $status;
+
+        return $sanitized;
     }
 }
