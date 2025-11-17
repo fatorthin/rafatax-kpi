@@ -10,6 +10,7 @@ class Client extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'id', // Allow manual ID assignment untuk sync
         'code',
         'company_name',
         'phone',

@@ -9,6 +9,7 @@ use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
 
 class ListClients extends ListRecords
 {
@@ -97,6 +98,10 @@ class ListClients extends ListRecords
             Log::info('Total client data fetched', ['total' => count($allClientData)]);
 
             // 3. Proses dan simpan data ke database
+            // Disable strict mode sementara untuk menghindari warning 1265 yang meng-rollback transaksi
+            $originalSqlMode = DB::selectOne('SELECT @@sql_mode as mode')->mode;
+            DB::statement("SET SESSION sql_mode=''");
+
             $successCount = 0;
             $errorCount = 0;
 
@@ -110,14 +115,77 @@ class ListClients extends ListRecords
 
             foreach ($allClientData as $index => $data) {
                 try {
+                    DB::beginTransaction();
+
                     $clientDataToSave = $this->sanitizeClientPayload($data);
 
-                    // Gunakan code sebagai unique identifier karena lebih reliable
-                    // dan hindari konflik dengan auto-increment ID database lokal
-                    $client = Client::updateOrCreate(
-                        ['code' => $clientDataToSave['code']], // gunakan code, bukan id eksternal
-                        $clientDataToSave
-                    );
+                    // ID dari sumber
+                    $sourceId = $data['id'] ?? null;
+                    $sourceCode = $clientDataToSave['code'];
+
+                    if (!$sourceId) {
+                        Log::warning('Source ID not found, skipping', ['code' => $sourceCode]);
+                        DB::rollBack();
+                        continue;
+                    }
+
+                    // Cari client berdasarkan ID atau code
+                    $clientById = Client::withTrashed()->find($sourceId);
+                    $clientByCode = Client::withTrashed()->where('code', $sourceCode)->first();
+
+                    if ($clientById && $clientByCode && $clientById->id !== $clientByCode->id) {
+                        // Ada konflik: ID source sudah dipakai client lain DAN code juga ada di client lain
+                        // Hapus semua relasi dari client dengan ID berbeda
+                        $clientByCode->team()->detach();
+                        $clientByCode->staff()->detach();
+
+                        // Hard delete client lama yang punya code sama
+                        DB::table('clients')->where('id', $clientByCode->id)->delete();
+
+                        // Update atau create dengan ID yang benar
+                        if ($clientById) {
+                            $clientById->fill($clientDataToSave);
+                            $clientById->save();
+                            $client = $clientById;
+                        } else {
+                            $clientDataToSave['id'] = $sourceId;
+                            $client = Client::unguarded(function () use ($clientDataToSave) {
+                                return Client::create($clientDataToSave);
+                            });
+                        }
+
+                        Log::info('Resolved ID/code conflict during sync', [
+                            'code' => $sourceCode,
+                            'removed_id' => $clientByCode->id,
+                            'kept_id' => $sourceId
+                        ]);
+                    } elseif ($clientById) {
+                        // ID sudah ada, update saja
+                        $clientById->fill($clientDataToSave);
+                        $clientById->save();
+                        $client = $clientById;
+                    } elseif ($clientByCode) {
+                        // Code ada tapi ID berbeda, update ID-nya dengan raw query
+                        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+                        DB::table('clients')
+                            ->where('id', $clientByCode->id)
+                            ->update(['id' => $sourceId] + $clientDataToSave + ['updated_at' => now()]);
+                        DB::statement('SET FOREIGN_KEY_CHECKS=1');
+
+                        $client = Client::find($sourceId);
+
+                        Log::info('Client ID updated during sync', [
+                            'code' => $sourceCode,
+                            'old_id' => $clientByCode->id,
+                            'new_id' => $sourceId
+                        ]);
+                    } else {
+                        // Baru, insert dengan ID dari sumber
+                        $clientDataToSave['id'] = $sourceId;
+                        $client = Client::unguarded(function () use ($clientDataToSave) {
+                            return Client::create($clientDataToSave);
+                        });
+                    }
 
                     // Handle team relation (many-to-many) jika ada team_id dari API
                     if (isset($data['team_id']) && !empty($data['team_id'])) {
@@ -129,21 +197,23 @@ class ListClients extends ListRecords
                         $client->staff()->sync($data['staff_ids']);
                     }
 
+                    DB::commit();
+                    DB::commit();
                     $successCount++;
                 } catch (\Illuminate\Database\QueryException $e) {
+                    DB::rollBack();
                     $errorCount++;
 
                     // Jika error adalah warning 1265 (data truncated) padahal nilai sudah valid,
-                    // log sebagai warning saja, bukan error
+                    // log sebagai warning saja, bukan error - DATA TETAP TERSIMPAN karena sudah commit
                     if (str_contains($e->getMessage(), '1265') && str_contains($e->getMessage(), 'jenis_wp')) {
-                        Log::warning('MySQL strict mode warning for client (data saved despite warning)', [
+                        Log::warning('MySQL strict mode warning for client (proceeding despite warning)', [
                             'client_code' => $clientDataToSave['code'] ?? 'unknown',
                             'jenis_wp_value' => $clientDataToSave['jenis_wp'] ?? null,
                             'external_id' => $data['id'] ?? null,
                         ]);
-                        // Meskipun ada warning, data sebenarnya tersimpan
-                        $successCount++;
-                        $errorCount--;
+                        // WARNING: Jangan increment successCount di sini karena transaction sudah rollback!
+                        // Data TIDAK tersimpan meskipun warning bilang "data saved"
                     } else {
                         Log::error('Database error syncing client', [
                             'client_code' => $clientDataToSave['code'] ?? 'unknown',
@@ -153,6 +223,7 @@ class ListClients extends ListRecords
                         ]);
                     }
                 } catch (\Exception $e) {
+                    DB::rollBack();
                     $errorCount++;
                     Log::error('Error syncing client', [
                         'client_code' => $clientDataToSave['code'] ?? 'unknown',
@@ -162,6 +233,9 @@ class ListClients extends ListRecords
                     ]);
                 }
             }
+
+            // Restore SQL mode
+            DB::statement("SET SESSION sql_mode='{$originalSqlMode}'");
 
             // Log hasil sinkronisasi
             Log::info('Client sync completed', [
@@ -259,20 +333,22 @@ class ListClients extends ListRecords
     protected function sanitizeClientPayload(array $data): array
     {
         // Enum validation dengan mapping untuk jenis_wp
-        // Database actual: enum('op','badan') bukan ('perseorangan','badan')
+        // Database actual: enum('perseorangan','badan') - pastikan mapping ke nilai yang benar
         $jenisWpMapping = [
-            'perseorangan' => 'op',
-            'op' => 'op',
-            'orang_pribadi' => 'op',
-            'pribadi' => 'op',
+            'perseorangan' => 'perseorangan',
+            'op' => 'perseorangan',
+            'orang_pribadi' => 'perseorangan',
+            'pribadi' => 'perseorangan',
+            'personal' => 'perseorangan',
             'badan' => 'badan',
             'badan_usaha' => 'badan',
             'pt' => 'badan',
             'cv' => 'badan',
+            'corporate' => 'badan',
         ];
 
-        $rawJenisWpInput = strtolower(trim((string)($data['jenis_wp'] ?? 'op')));
-        $rawJenisWp = $jenisWpMapping[$rawJenisWpInput] ?? 'op';
+        $rawJenisWpInput = strtolower(trim((string)($data['jenis_wp'] ?? 'perseorangan')));
+        $rawJenisWp = $jenisWpMapping[$rawJenisWpInput] ?? 'perseorangan';
 
         if (!isset($jenisWpMapping[$rawJenisWpInput])) {
             Log::warning('Unknown jenis_wp value received, fallback applied', [
